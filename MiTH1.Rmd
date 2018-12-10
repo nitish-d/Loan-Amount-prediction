@@ -1,0 +1,389 @@
+
+```{r setup, include=FALSE}
+rm(list = ls(all = TRUE))
+```
+# Reading the train dataset.
+```{r}
+train_data <- read.csv("Dataset/Train-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+pd_data <- read.csv("Dataset/Train_Policy_Demographics-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+cd_data <- read.csv("Dataset/Train_ClaimDetails-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+```
+# Reading the test dataset.
+```{r}
+test_data <- read.csv("Dataset/Test-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+test_pd_data <- read.csv("Dataset/Test_Policy_Demographics-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+test_cd_data <- read.csv("Dataset/Test_ClaimDetails-1542969243754.csv", header = T, na.strings=c(" ",".","NA","?","-",""))
+```
+## Checking Structure of the train and test data
+```{r}
+str(train_data)
+```
+
+```{r}
+str(pd_data)
+```
+
+```{r}
+str(cd_data)
+```
+
+```{r}
+str(test_data)
+```
+
+```{r}
+str(test_pd_data)
+```
+
+```{r}
+str(test_cd_data)
+```
+## Checking head of the train and test data
+```{r}
+head(train_data)
+```
+
+```{r}
+head(pd_data)
+```
+
+```{r}
+head(cd_data)
+```
+
+```{r}
+head(test_data)
+```
+
+```{r}
+head(test_pd_data)
+```
+
+```{r}
+head(test_cd_data)
+```
+## Checking tail of the train and test data
+```{r}
+tail(train_data)
+```
+
+```{r}
+tail(pd_data)
+```
+
+```{r}
+tail(cd_data)
+```
+
+```{r}
+tail(test_data)
+```
+
+```{r}
+tail(test_pd_data)
+```
+
+```{r}
+tail(test_cd_data)
+```
+## Checking the summary of the train and test dataset
+```{r}
+summary(train_data)
+```
+
+```{r}
+summary(pd_data)
+```
+
+```{r}
+summary(cd_data)
+```
+
+```{r}
+summary(test_data)
+```
+
+```{r}
+summary(test_pd_data)
+```
+
+```{r}
+summary(test_cd_data)
+```
+
+## checking NA's on train and test data.
+```{r}
+sum(is.na(train_data))
+```
+
+```{r}
+sum(is.na(pd_data))
+```
+
+```{r}
+sum(is.na(cd_data))
+```
+
+```{r}
+sum(is.na(test_data))
+```
+
+```{r}
+sum(is.na(test_pd_data))
+```
+
+```{r}
+sum(is.na(test_cd_data))
+```
+## Creating report on train and test data.
+```{r}
+#library(DataExplorer)
+#create_report(train_data)
+#create_report(pd_data)
+#create_report(cd_data)
+#create_report(test_data)
+#create_report(test_pd_data)
+#create_report(test_cd_data)
+```
+## Removing the variables which contain excess NA values.
+```{r}
+ccd_data <- subset(cd_data, select = c(PrimaFacie_percentagefault_uninsured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_injured, AnyMultipleInterestedparties, Anyothercontributors, CollateralSourcesAvailability, WorkersCompAvailability, WhetherPrimaFacie_JointandSeveralLiability, Exemplarydamages, Non_economicloss, Age_Injured, Date_reported, Injury_Date, ClaimID))
+
+test_ccd_data <- subset(test_cd_data, select = c(PrimaFacie_percentagefault_uninsured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_injured, AnyMultipleInterestedparties, Anyothercontributors, CollateralSourcesAvailability, WorkersCompAvailability, WhetherPrimaFacie_JointandSeveralLiability, Exemplarydamages, Non_economicloss, Age_Injured, Date_reported, Injury_Date, ClaimID))
+```
+# Combining the all the data files to make it single data file of train and test data.
+```{r}
+join_data = cbind(train_data, pd_data, ccd_data)
+dim(join_data)
+str(join_data)
+# View(join_data)
+test_join_data = cbind(test_data, test_pd_data, test_ccd_data)
+dim(test_join_data)
+str(test_join_data)
+# View(test_join_data)
+```
+## Converting the data types on train and test data.
+```{r}
+join_data$PolicyType <- as.factor(join_data$PolicyType)
+join_data$PolicyForm <- as.factor(join_data$PolicyForm)
+join_data$BusinessClass <- as.factor(join_data$BusinessClass)
+join_data$Anyothercontributors <- as.factor(join_data$Anyothercontributors)
+str(join_data)
+# View(join_data)
+test_join_data$PolicyType <- as.factor(test_join_data$PolicyType)
+test_join_data$PolicyForm <- as.factor(test_join_data$PolicyForm)
+test_join_data$BusinessClass <- as.factor(test_join_data$BusinessClass)
+test_join_data$Anyothercontributors <- as.factor(test_join_data$Anyothercontributors)
+str(test_join_data)
+# View(test_join_data)
+```
+## Dropping multiple variables from train and test data.
+```{r}
+claimID = join_data$ClaimID
+join_data$ClaimID = NULL
+join_data$ClaimID = NULL
+join_data$ClaimID = NULL
+PolicyID = join_data$PolicyID
+join_data$PolicyID = NULL
+Date_reported = join_data$Date_reported
+join_data$Date_reported = NULL
+Injury_Date = join_data$Injury_Date
+join_data$Injury_Date = NULL
+Claim_Size = join_data$ClaimSize
+join_data$ClaimSize = NULL
+dim(join_data)
+# View(join_data)
+claimID_t = test_join_data$ClaimID
+test_join_data$ClaimID = NULL
+test_join_data$ClaimID = NULL
+test_join_data$ClaimID = NULL
+PolicyID_t = test_join_data$PolicyID
+test_join_data$PolicyID = NULL
+Date_reported_t = test_join_data$Date_reported
+test_join_data$Date_reported = NULL
+Injury_Date_t = test_join_data$Injury_Date
+test_join_data$Injury_Date = NULL
+Claim_Size_t = test_join_data$ClaimSize
+test_join_data$ClaimSize = NULL
+dim(test_join_data)
+# View(test_join_data)
+```
+## Seperating numerical and categorical variables on train and test data.
+```{r}
+numerical = subset(join_data,select=c(Perperson_Policylimit, PerOccurrence_PolicyLimit, CombinedSingleLimit, PolicyLimitPerInjury,PrimaFacie_percentagefault_uninsured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_injured,AnyMultipleInterestedparties,Age_Injured))
+categorical <- subset(join_data,select=-c(Perperson_Policylimit, PerOccurrence_PolicyLimit, CombinedSingleLimit, PolicyLimitPerInjury,PrimaFacie_percentagefault_uninsured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_injured,AnyMultipleInterestedparties,Age_Injured))
+
+test_numerical = subset(test_join_data,select=c(Perperson_Policylimit, PerOccurrence_PolicyLimit, CombinedSingleLimit, PolicyLimitPerInjury,PrimaFacie_percentagefault_uninsured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_injured,AnyMultipleInterestedparties,Age_Injured))
+test_categorical <- subset(test_join_data,select=-c(Perperson_Policylimit, PerOccurrence_PolicyLimit, CombinedSingleLimit, PolicyLimitPerInjury,PrimaFacie_percentagefault_uninsured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_injured,AnyMultipleInterestedparties,Age_Injured))
+```
+## Dummification of the categorical variables on train and test data.
+```{r}
+library(dummies)
+categorical = dummy.data.frame(categorical)
+str(categorical)
+dim(categorical)
+#View(categorical)
+test_categorical = dummy.data.frame(test_categorical)
+str(test_categorical)
+dim(test_categorical)
+```
+# Tried feature selection for some variable.
+```{r}
+Injuries <- subset(cd_data, select = c(BackInjury,MultipleInjuries,OtherInjuries, OtherModeOfInjury,SpinalCordInjuries))
+Injuries <- dummy.data.frame(Injuries)
+sum(is.na(Injuries))
+
+test_Injuries <- subset(test_cd_data, select = c(BackInjury,MultipleInjuries,OtherInjuries,OtherModeOfInjury,SpinalCordInjuries))
+test_Injuries <- dummy.data.frame(test_Injuries)
+sum(is.na(Injuries))
+```
+
+
+## Joining all data to form single dataset for train and test.
+```{r}
+# right_data = cbind(numerical, categorical, Claim_Size, Injuries)
+# str(right_data)
+# dim(right_data)
+# View(right_data)
+
+# test_right_data = cbind(test_numerical, test_categorical, test_Injuries)
+# str(test_right_data)
+# dim(test_right_data)
+# View(test_right_data)
+
+right_data = cbind(numerical, categorical, Claim_Size)
+str(right_data)
+dim(right_data)
+View(right_data)
+
+test_right_data = cbind(test_numerical, test_categorical)
+str(test_right_data)
+dim(test_right_data)
+View(test_right_data)
+```
+# Dividing the Age by 100
+```{r}
+right_data$Age_Injured = (right_data$Age_Injured / 100)
+test_right_data$Age_Injured = (test_right_data$Age_Injured / 100)
+```
+# Standardizing the train and test data.
+```{r}
+#library(caret)
+#std_model <- preProcess(right_data[, !names(right_data) %in% c("Claim_Size")], method = c("center","scale"))
+#std_model
+
+#right_data[, !names(right_data) %in% c("Claim_Size")] <- predict(object = std_model, newdata = right_data[, !names(right_data) %in% c("Claim_Size")])
+
+#test_right_data <- predict(object = std_model, newdata = test_right_data)
+```
+# Train Test Split
+```{r}
+set.seed(123)
+train_rows = sample(x = 1:nrow(right_data), size = 0.7*nrow(right_data))
+train_data=  right_data[train_rows, ]
+train_x <- subset(train_data, select = -c(Claim_Size))
+train_y <- train_data$Claim_Size
+val_data= right_data[-train_rows, ]
+val_x <- subset(val_data, select = -c(Claim_Size))
+val_y <- val_data$ClaimSize
+```
+
+# Logistic model
+```{r}
+library(nnet)
+lg_model_basic <- multinom(Claim_Size~., data = train_data)
+summary(lg_model_basic)
+lg_basic_pred_train <- predict(lg_model_basic, train_data)
+lg_basic_conf_matrix <- table(train_data$Claim_Size, lg_basic_pred_train)
+print(lg_basic_conf_matrix)
+lg_basic_accuracy <- sum(diag(lg_basic_conf_matrix))/sum(lg_basic_conf_matrix)
+print(lg_basic_accuracy*100)
+lg_basic_pred_val <- predict(lg_model_basic, val_data)
+lg_basic_conf_matrix <- table(val_data$Claim_Size, lg_basic_pred_val)
+print(lg_basic_conf_matrix)
+lg_basic_accuracy_val <- sum(diag(lg_basic_conf_matrix))/sum(lg_basic_conf_matrix)
+print(lg_basic_accuracy_val*100)
+```
+# basic model Predictions on the test data.
+```{r}
+lg_basic_pred_test <- predict(lg_model_basic, test_right_data)
+
+lg_basic_result = data.frame(claimID_t, lg_basic_pred_test)
+# write.csv(x = lg_basic_result, file = "submission_2.csv")
+```
+
+# Random Forest model
+```{r}
+library(caret)
+train.control <- trainControl(method = "cv", number = 5)
+library(randomForest)
+mtry <- c(sqrt(ncol(right_data)))
+print(mtry)
+tunegrid <- expand.grid(.mtry=mtry)
+metric <- "Accuracy"
+#rf_model <- randomForest(Claim_Size ~ .,data=train_data, ntree = 200, method = "rf", metric=metric, tuneGrid=tunegrid, trControl = train.control)
+model_rf <- train(Claim_Size ~ .,data=right_data, ntree = 200, method = "rf", metric=metric, tuneGrid=tunegrid, trControl = train.control)
+rf_pred_train <- predict(rf_model, right_data)
+rf_conf_matrix <- table(right_data$Claim_Size, rf_pred_train)
+print(rf_conf_matrix)
+rf_accuracy <- sum(diag(rf_conf_matrix))/sum(rf_conf_matrix)
+print(rf_accuracy * 100)
+pred_val_2 <- predict(rf_model, val_data)
+conf_matrix_2 <- table(val_data$Claim_Size, pred_val_2)
+print(conf_matrix_2)
+accuracy_val_2 <- sum(diag(conf_matrix_2))/sum(conf_matrix_2)
+print(accuracy_val_2 * 100)
+pred_test_2 <- predict(rf_model, test_right_data)
+result = data.frame(claimID_t, pred_test_2)
+# write.csv(x = result, file = "submission_1.csv")
+```
+# XGBoost model
+```{r}
+# library(xgboost)
+# train_matrix <- xgb.DMatrix(data = as.matrix(train_data[, !(names(train_data) %in% c("Claim_Size"))]), 
+#                              label = as.matrix(train_data[, names(train_data) %in% "Claim_Size"]))
+#  
+#  
+# xgb_model_basic <- xgboost(data = train_matrix, max.depth = 2, eta = 1, nthread = -1, nround = 300, verbose = 1, early_stopping_rounds = 10)
+# 
+# numberOfClasses <- length(unique(train_data$Claim_Size))
+# xgb_params <- list("objective" = "multi:softprob",
+#                    "eval_metric" = "mlogloss",
+#                    "num_class" = numberOfClasses)
+# nround    <- 50 # number of XGBoost rounds
+# cv.nfold  <- 5
+# 
+# Fit cv.nfold * cv.nround XGB models and save OOF predictions
+# cv_model <- xgb.cv(params = xgb_params,
+#                    data = train_matrix, 
+#                    nrounds = nround,
+#                    nfold = cv.nfold,
+#                    verbose = FALSE,
+#                    prediction = TRUE)
+```
+#
+```{r}
+# library(ada)
+#   ada_model = ada(train_x, train_y, iter=20, loss="logistic") # 20 Iterations 
+#   ada_model
+#   
+#   # predict the values using model on test data sets. 
+#   ada_pred = predict(ada_model, val_x);pred 
+#   
+#   # calculate accuracy 
+#   ada_result <- table(ada_pred, val_y);
+#   ada_result # 0(-ve) and 1(+ve)
+#   accuracy <- sum(diag(result))/sum(result)*100;accuracy
+```
+
+```{r}
+library(gbm)
+ada_model = gbm
+```
+#
+```{r}
+```
+#
+```{r}
+```
+
