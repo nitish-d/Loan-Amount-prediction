@@ -1,0 +1,398 @@
+
+### Clearing environment variables
+
+```{r}
+
+rm(list = ls(all=TRUE))
+
+```
+
+## Read the data into R
+```{r}
+
+Train = read.csv("Train-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-","")) 
+
+Train_ClaimDetails = read.csv("Train_ClaimDetails-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-",""))
+
+Train_Policy_Demographics = read.csv("Train_Policy_Demographics-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-",""))
+
+dim(Train)
+
+dim(Train_ClaimDetails)
+
+dim(Train_Policy_Demographics)
+
+colnames(Train)
+
+colnames(Train_ClaimDetails)
+
+colnames(Train_Policy_Demographics)
+
+head(Train)
+
+head(Train_ClaimDetails)
+
+head(Train_Policy_Demographics)
+
+sum(is.na(Train))
+
+sum(is.na(Train_ClaimDetails))
+
+sum(is.na(Train_Policy_Demographics))
+
+library(DataExplorer)
+
+create_report(Train_ClaimDetails)
+```
+
+```{r}
+ClaimIDD = Train$ClaimID
+
+Train_New = Train$ClaimSize
+
+str(Train_New)
+
+Train_ClaimDetails$ClaimID = NULL
+Train_Policy_Demographics$ClaimID = NULL
+Train_Policy_Demographics$PolicyID = NULL
+
+Train_Data = cbind(Train_ClaimDetails, Train_Policy_Demographics, Train_New)
+
+dim(Train_Data)
+
+create_report(Train_Data)
+```
+
+```{r}
+str(Train_Data)
+```
+
+```{r}
+Train_Data_WO_NA_80= Train_Data[, -which(colMeans(is.na(Train_Data)) > 0.8)]
+sum(is.na(Train_Data_WO_NA_80))
+str(Train_Data_WO_NA_80)
+```
+
+
+```{r}
+length(unique(Train_Data_WO_NA_80$Age_Injured))
+length(unique(Train_Data_WO_NA_80$PrimaFacie_percentagefault_injured))
+length(unique(Train_Data_WO_NA_80$PrimaFacie_percentagefault_insured))
+length(unique(Train_Data_WO_NA_80$PrimaFacie_percentagefault_otherinsured))
+length(unique(Train_Data_WO_NA_80$PrimaFacie_percentagefault_uninsured))
+length(unique(Train_Data_WO_NA_80$BusinessClass))
+length(unique(Train_Data_WO_NA_80$Perperson_Policylimit))
+length(unique(Train_Data_WO_NA_80$PerOccurrence_PolicyLimit))
+length(unique(Train_Data_WO_NA_80$CombinedSingleLimit))
+length(unique(Train_Data_WO_NA_80$PolicyLimitPerInjury))
+```
+
+```{r}
+# Train_Data_WO_NA_80= Train_Data[, -which(colMeans(is.na(Train_Data)) > 0.8)]
+# sum(is.na(Train_Data_WO_NA_80))
+# str(Train_Data_WO_NA_80)
+```
+
+```{r}
+Train_Data_NumAtr<-subset(Train_Data_WO_NA_80,select=c(Age_Injured,PrimaFacie_percentagefault_injured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_uninsured,BusinessClass,Perperson_Policylimit,PerOccurrence_PolicyLimit,CombinedSingleLimit, PolicyLimitPerInjury))
+
+Train_Data_CatAtr = subset(Train_Data_WO_NA_80, select = -c(Age_Injured,PrimaFacie_percentagefault_injured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_uninsured,BusinessClass,Perperson_Policylimit,PerOccurrence_PolicyLimit,CombinedSingleLimit, PolicyLimitPerInjury))
+
+Train_Data_NumAtr$Age_Injured = Train_Data_NumAtr$Age_Injured/100
+
+train_num_data = data.frame(
+  apply(Train_Data_NumAtr,2,function(x){as.numeric(x)}))
+
+train_cat_data = data.frame(
+  apply(Train_Data_CatAtr,2,function(x){as.factor(x)}))
+
+str(train_cat_data)
+str(train_num_data)
+
+sum(is.na(train_cat_data))
+sum(is.na(train_num_data))
+
+dim(train_cat_data)
+dim(train_num_data)
+
+sapply(train_cat_data, function(x) sum(length(which(is.na(x))))) 
+
+dim(train_cat_data)
+
+colnames(train_cat_data)[18] <- "ClaimSize"
+colnames(train_cat_data)[18]
+
+train_cat_data$ClaimSize = NULL
+train_cat_data$Injury_Date = NULL
+train_cat_data$Date_reported = NULL
+
+dim(train_cat_data)
+```
+
+```{r}
+library(dummies)
+train_data_dum = dummy.data.frame(data=train_cat_data)
+
+sum(is.na(train_data_dum))  
+dim(train_data_dum)
+
+View(train_data_dum)
+
+colnames(train_data_dum)
+```
+
+```{r}
+Train_Data_Final = cbind(train_num_data, train_data_dum, Train$ClaimSize)
+colnames(Train_Data_Final)
+colnames(Train_Data_Final)[45] <- "ClaimSize"
+colnames(Train_Data_Final)[45]
+dim(Train_Data_Final)
+```
+
+
+```{r}
+set.seed(786)
+library(caret)
+train_rows <- createDataPartition(Train_Data_Final$ClaimSize, p = 0.7, list = F)
+
+train_data <- Train_Data_Final[train_rows, ]
+
+validation_data <- Train_Data_Final[-train_rows, ]
+
+dim(train_data)
+dim(validation_data)
+
+```
+
+
+```{r}
+
+library(nnet)
+model <- multinom(ClaimSize ~., train_data)
+summary(model)
+
+pred_train <- predict(model, train_data)
+
+conf_matrix <- table(train_data$ClaimSize, pred_train)
+
+print(conf_matrix)
+
+accuracy <- sum(diag(conf_matrix))/sum(conf_matrix)
+
+print(accuracy)
+```
+```{r}
+pred_val <- predict(model, validation_data)
+
+conf_matrix <- table(validation_data$ClaimSize, pred_val)
+
+print(conf_matrix)
+
+accuracy_val <- sum(diag(conf_matrix))/sum(conf_matrix)
+
+print(accuracy_val)
+
+```
+
+```{r}
+set.seed(1234)
+
+index_train <- createDataPartition(Train_Data_Final$ClaimSize, p = 0.7, list = F)
+
+pre_train <- Train_Data_Final[index_train, ]
+
+pre_test <- Train_Data_Final[-index_train, ]
+```
+
+```{r}
+std_method <- preProcess(pre_train, method = c("center", "scale"))
+
+train_data_std <- predict(std_method, pre_train)
+  
+val_data_std <- predict(std_method, pre_test)
+```
+
+```{r}
+library(kernlab)
+#svm_poly <- ksvm(ClaimSize ~ . , train_data_std, kernel = "polydot")
+```
+
+```{r}
+library(C50)
+
+c5_tree <- C5.0(ClaimSize ~ . , train_data)
+
+```
+
+
+```{r}
+pred_train_c5 <- predict(c5_tree, train_data)
+
+conf_matrix_c5_train <- table(train_data$ClaimSize, pred_train_c5)
+
+print(conf_matrix_c5_train)
+
+accuracy_train_c5 <- sum(diag(conf_matrix_c5_train))/sum(conf_matrix_c5_train)
+
+print(accuracy_train_c5)
+
+```
+
+
+```{r}
+pred_val_c5 <- predict(c5_tree, validation_data)
+
+conf_matrix_c5 <- table(validation_data$ClaimSize, pred_val)
+
+print(conf_matrix_c5)
+
+accuracy_val_c5 <- sum(diag(conf_matrix_c5))/sum(conf_matrix_c5)
+
+print(accuracy_val_c5)
+
+```
+```{r}
+library(rpart)
+rpart_tree <- rpart(ClaimSize ~ . , data = train_data, method="class")
+
+pred_train_cart <- predict(rpart_tree, train_data, type="class")
+
+conf_matrix_cart_tra <- table(train_data$ClaimSize, pred_train_cart)
+
+print(conf_matrix_cart_tra)
+
+accuracy_cart_tra <- sum(diag(conf_matrix_cart_tra))/sum(conf_matrix_cart_tra)
+
+print(accuracy_cart_tra)
+
+```
+
+```{r}
+pred_val_cart <- predict(rpart_tree, validation_data, type="class")
+
+conf_matrix_cart_val <- table(validation_data$ClaimSize, pred_val_cart)
+
+print(conf_matrix_cart_val)
+
+accuracy_cart_val <- sum(diag(conf_matrix_cart_val))/sum(conf_matrix_cart_val)
+
+print(accuracy_cart_val)
+
+```
+
+```{r}
+set.seed(123)
+
+#model_RF = randomForest(target ~ ., data=train_Data, keep.forest=TRUE, ntree=200) 
+
+# Train the model - Random Forrest
+sampling_strategy <- trainControl(method = "repeatedcv", number = 5, repeats = 2, verboseIter = F, allowParallel = T)
+
+mtry <- c(sqrt(ncol(train_data)))
+print(mtry)
+tunegrid <- expand.grid(.mtry=mtry)
+metric <- "Accuracy"
+model_rf <- train(ClaimSize ~ .,data=train_data, ntree = 200, method = "rf", metric=metric, tuneGrid=tunegrid, trControl = sampling_strategy)
+# Summarize the results
+print(model_rf)
+
+#  Accuracy   Kappa    
+#  0.6784406  0.4321779
+```
+
+### Data Preprocessing on test data
+
+```{r}
+Test = read.csv("Test-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-","")) 
+
+Test_ClaimDetails = read.csv("Test_ClaimDetails-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-",""))
+
+Test_Policy_Demographics = read.csv("Test_Policy_Demographics-1542969243754.csv",header = TRUE,na.strings = c(" ",".","NA","?","-",""))
+
+dim(Test)
+
+dim(Test_ClaimDetails)
+
+dim(Test_Policy_Demographics)
+
+colnames(Test)
+
+colnames(Test_ClaimDetails)
+
+colnames(Test_Policy_Demographics)
+
+sum(is.na(Test))
+
+sum(is.na(Test_ClaimDetails))
+
+sum(is.na(Test_Policy_Demographics))
+```
+
+```{r}
+Test_Policy_Demographics$ClaimID = NULL
+Test_Policy_Demographics$PolicyID = NULL
+Test_Data = cbind(Test_ClaimDetails, Test_Policy_Demographics)
+dim(Test_Data)
+```
+
+```{r}
+#sapply(Test_Data, function(x) sum(length(which(is.na(x))))) 
+
+Test_Data_WO_NA_80= Test_Data[, -which(colMeans(is.na(Test_Data)) > 0.8)]
+sum(is.na(Test_Data_WO_NA_80))
+#str(Test_Data_WO_NA_80)
+```
+```{r}
+Test_Data_NumAtr<-subset(Test_Data_WO_NA_80,select=c(Age_Injured,PrimaFacie_percentagefault_injured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_uninsured,BusinessClass,Perperson_Policylimit,PerOccurrence_PolicyLimit,CombinedSingleLimit, PolicyLimitPerInjury))
+
+Test_Data_CatAtr = subset(Test_Data_WO_NA_80, select = -c(Age_Injured,PrimaFacie_percentagefault_injured,PrimaFacie_percentagefault_insured,PrimaFacie_percentagefault_otherinsured,PrimaFacie_percentagefault_uninsured,BusinessClass,Perperson_Policylimit,PerOccurrence_PolicyLimit,CombinedSingleLimit, PolicyLimitPerInjury))
+
+Test_Data_NumAtr$Age_Injured = Test_Data_NumAtr$Age_Injured/100
+
+test_num_data = data.frame(
+  apply(Test_Data_NumAtr,2,function(x){as.numeric(x)}))
+
+test_cat_data = data.frame(
+  apply(Test_Data_CatAtr,2,function(x){as.factor(x)}))
+
+str(test_cat_data)
+str(test_num_data)
+
+sum(is.na(test_cat_data))
+sum(is.na(test_num_data))
+
+dim(test_cat_data)
+dim(test_num_data)
+
+sapply(test_cat_data, function(x) sum(length(which(is.na(x))))) 
+
+dim(test_cat_data)
+
+test_cat_data$ClaimSize = NULL
+test_cat_data$Injury_Date = NULL
+test_cat_data$Date_reported = NULL
+
+dim(test_cat_data)
+```
+```{r}
+library(dummies)
+test_data_dum = dummy.data.frame(data=test_cat_data)
+
+sum(is.na(test_data_dum))  
+dim(test_data_dum)
+
+```
+
+```{r}
+Test_Data_Final = cbind(test_num_data, test_data_dum)
+dim(Test_Data_Final)
+```
+
+
+```{r}
+pred_TEST <- predict(model_rf, Test_Data_Final)
+result = data.frame(Test$ClaimID,pred_TEST)
+names(result) <- c("ClaimID","ClaimSize")
+# write.csv(result, file = "Submission.csv")
+head(pred_TEST)
+```
