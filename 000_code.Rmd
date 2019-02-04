@@ -1,0 +1,293 @@
+---
+title: "MiTH"
+author: "Vidyadhar Nandikol"
+date: "December 1, 2018"
+output: html_document
+---
+
+## Environment Initialisation
+```{r setup, include=FALSE}
+# First things first, clean your R environment
+rm(list = ls(all=TRUE))
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# This library has some function we use quite often, such as KNN and Cetnral Imputation, regr.eval(), SMOTE, manyNAs() 
+library(DMwR)
+
+# This library has some specific calls for Random Forest Algorithm - The model itself, importance of variables
+library(randomForest)
+
+# Preprocess functions, nearzerovars etc.
+install.packages('data.table')
+
+# The caret package (short for Classification And REgression Training) contains functions to streamline the model training process for complex regression and classification problems.
+library(caret)
+
+# For statistical computing - The package "dplyr" comprises many functions that perform mostly used data manipulation operations such as applying filter, selecting specific columns, sorting data, adding or deleting columns and aggregating data
+library(dplyr)
+
+# ggplot2 is a system for declaratively creating graphics, based on The Grammar of Graphics
+install.packages('ggplot2')
+
+# Work with with dates and times in R
+library(lubridate)
+
+# package for plotting
+library(ggplot2)    
+
+# package for plotting correlations
+library(corrplot)  
+
+## package for drawing multiple graphs on a grid
+library(gridExtra) 
+
+
+```
+
+```{r}
+# Setting up the current Working directory
+setwd('D:/INSOFE/MITH')
+
+```
+
+## Read the Train and Test datasets into R environment
+
+```{r cars}
+# Reading the Train dataset files
+trainclaim = read.csv("Train_ClaimDetails-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+trainpol = read.csv("Train_Policy_Demographics-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+trainres = read.csv("Train-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+
+# Reading the Test dataset files
+testclaim = read.csv("Test_ClaimDetails-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+testpol = read.csv("Test_Policy_Demographics-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+testres = read.csv("Test-1542969243754.CSV",header = TRUE,na.strings = c(NA,"?",""))
+```
+
+## Data Exploration
+```{r}
+
+# Find the number of observations and attributes in the given dataset
+dim(trainclaim)
+dim(trainpol)
+
+dim(testclaim)
+dim(testpol)
+
+# Merge the Insurance claim dataset and Policy details dataset - For Training 
+train = merge(trainclaim, trainpol, all=TRUE)
+
+# Merge the Insurance claim dataset and Policy details dataset - For Testing
+test = merge(testclaim, testpol, all=TRUE)
+
+## Study the given datasets
+
+# Find the number of observations and attributes in the given dataset - After Merging datasets
+dim(train)
+dim(test)
+
+# Analyse the attribute properties of the datasets
+str(train)
+str(test)
+
+summary(train)
+summary(test)
+
+# View the first 10 records to understand the information provided in the datasets
+head(train)
+head(test)
+
+```
+## Feature Engineering
+
+```{r pressure, echo=FALSE}
+
+# Set the date format for the Date columns
+train$Injury_Date <- as.Date(train$Injury_Date , "%m/%d/%y")
+test$Injury_Date <- as.Date(test$Injury_Date , "%m/%d/%y")
+
+# Convert the Age given in days to years
+train$Age_Injured = train$Age_Injured/365
+test$Age_Injured = test$Age_Injured/365
+
+```
+
+## Check for the missing values 
+```{r}
+# Total number of missing values in Train and Test
+sum(is.na(train))
+sum(is.na(test))
+
+# Check the number of obsesrvations of the column data which has missing values
+sapply(train,function(x) sum(is.na(x)))
+
+# Check the percentage of the column data which has missing values
+prop.table(colSums(is.na(train)))
+prop.table(colSums(is.na(test)))
+
+```
+
+```{r}
+# Merge the result attributes with  the main dataset
+trainfull = merge(train, trainres, all=TRUE)
+testfull = merge(test, testres, all=TRUE)
+```
+
+## Feature Engineering
+```{r}
+# Summary statistics for ID attribute is not meaningful. Hence, this attribute is excluded from the data for analysis
+trainfull$ClaimID = NULL
+trainfull$PolicyID = NULL
+
+testfull$ClaimID = NULL
+testfull$PolicyID = NULL
+
+trainfull$Date_reported = as.numeric(as.Date(trainfull$Date_reported, origin = '1900-01-01'))
+testfull$Date_reported = as.numeric(as.Date(testfull$Date_reported, origin = '1900-01-01'))
+
+# Segregate the numerical and categorical attributes of the dataset - Train dataset
+num_Attr = subset(trainfull, select=c(PolicyLimitPerInjury, CombinedSingleLimit, PerOccurrence_PolicyLimit, Perperson_Policylimit, BusinessClass, Age_Injured, PrimaFacie_percentagefault_injured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_uninsured))
+
+cat_Attr = subset(trainfull, select=-c(PolicyLimitPerInjury, CombinedSingleLimit, PerOccurrence_PolicyLimit, Perperson_Policylimit, BusinessClass, Age_Injured, PrimaFacie_percentagefault_injured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_uninsured))
+
+# Convert all the numeric attributes to Number type - Train dataset
+num_Data = data.frame(apply(num_Attr,2,function(x){as.numeric(x)}))
+# Convert all the categorical attributes to Factor type
+cat_Data = data.frame(apply(cat_Attr,2,function(x){as.factor(x)}))
+
+# Impute the missing values in the categorical attributes
+cat_Data = lapply(cat_Data, function(x) {
+     if(anyNA(x)) {
+     levels(x) <- c(levels(x), "Missing")
+     x[is.na(x)] <- "Missing"
+     x}
+     else x
+  })
+
+# Segregate the numerical and categorical attributes of the dataset - Test dataset
+num_Attr_test = subset(testfull, select=c(PolicyLimitPerInjury, CombinedSingleLimit, PerOccurrence_PolicyLimit, Perperson_Policylimit, BusinessClass, Age_Injured, PrimaFacie_percentagefault_injured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_uninsured))
+
+cat_Attr_test = subset(testfull, select=-c(PolicyLimitPerInjury, CombinedSingleLimit, PerOccurrence_PolicyLimit, Perperson_Policylimit, BusinessClass, Age_Injured, PrimaFacie_percentagefault_injured, PrimaFacie_percentagefault_insured, PrimaFacie_percentagefault_otherinsured, PrimaFacie_percentagefault_uninsured))
+
+# Convert all the numeric attributes to Number type - Test dataset
+num_Data_test = data.frame(apply(num_Attr_test,2,function(x){as.numeric(x)}))
+# Convert all the categorical attributes to Factor type
+cat_Data_test = data.frame(apply(cat_Attr_test,2,function(x){as.factor(x)}))
+
+# Impute the missing values in the categorical attributes
+cat_Data_test = lapply(cat_Data_test, function(x) {
+     if(anyNA(x)) {
+     levels(x) <- c(levels(x), "Missing")
+     x[is.na(x)] <- "Missing"
+     x}
+     else x
+  })
+
+# Combine the number and categorical datasets 
+trainfinal = cbind(num_Data,cat_Data)
+testfinal = cbind(num_Data_test,cat_Data_test)
+
+
+# Plot to analyse the correlation between numeric attributes
+corr.matrix <- cor(num_Data)  ## Calculate the correlation matrix
+corrplot(corr.matrix, method='number',main="\n\nCorrelation Plot for Numerical Variables")  ## 
+
+# Excluding the date columns from the dataset 
+trainfinal$Injury_Date = NULL
+testfinal$Injury_Date = NULL
+
+trainfinal$Date_reported = NULL
+testfinal$Date_reported = NULL
+```
+
+
+## Build the Model using Random Forest algorithm
+# Why Random Forest :
+# Easy to Understand
+# Useful in Data exploration
+# Less data cleaning required
+# Data type is not a constraint
+# Non Parametric Method
+
+```{r}
+model = randomForest(ClaimSize ~ ., data= trainfinal, keep.forest=TRUE, ntree=360,mtry=16,nodesize=16,proximity=TRUE) 
+
+print(model)
+plot(model)
+model$importance
+varImpPlot(model,sort=TRUE)
+
+pred_Train = predict(model, 
+                     trainfinal[,setdiff(names(trainfinal), "ClaimSize")],
+                     type="response", 
+                     norm.votes=TRUE)
+
+cm_Train = table("actual"= trainfinal$ClaimSize, "predicted" = pred_Train);
+cm_Train
+
+accu_Train= sum(diag(cm_Train))/sum(cm_Train)
+accu_Train
+
+```
+
+## Using the model to predict the outcomes for Test dataset 
+```{r}
+testdata = read.csv("Test-1542969243754.csv",header = TRUE)
+
+predictions=predict(model,testfinal)
+
+output = data.frame(testdata$ClaimID,predictions)
+summary(output)
+dim(output)
+
+names(output)=c('ClaimID','ClaimSize')
+write.csv(output,file="RF18.csv",row.names=FALSE)
+
+```
+
+
+## Building the Gradient Boost Algorithm to check the accuracy of prediction
+```{r}
+# Initialise the environment
+install.packages("data.table")
+install.packages("h2o")
+install.packages("gmt")
+install.packages("gbm")
+install.packages("panda")
+
+h2o.init()
+
+library(h2o)
+
+library(gmt)
+
+nfolds <- 5
+
+gbm_train = as.h2o(trainfull)
+
+y='ClaimSize'
+x=setdiff(names(gbm_train),y)
+
+my_gbm <- h2o.gbm  (x = x,
+                  y = y,
+                  training_frame = gbm_train,
+                  distribution = "multinomial",
+                  ntrees = 500,
+                  max_depth = 3,
+                  min_rows = 2,
+                  learn_rate = 0.2,
+                  nfolds = nfolds,
+                  fold_assignment = "Modulo",
+                  keep_cross_validation_predictions = TRUE,
+                  seed = 1)
+
+plot(my_gbm)
+h2o.varimp(my_gbm)
+h2o.varimp_plot(my_gbm)
+
+perf_gbm <- h2o.performance(my_gbm) 
+accuracy_gbm <- h2o.r2(perf_gbm)
+accuracy_gbm
+
+```
